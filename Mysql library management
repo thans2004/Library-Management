@@ -1,0 +1,195 @@
+    --  Create Database: First, a database named library_management is created to store all library information.
+ 
+CREATE DATABASE library_management;
+USE library_management;
+
+ --   Users Table: The users table stores user details such as user ID, name, email, phone number, and address.gitr
+CREATE TABLE users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(15),
+    address VARCHAR(255)
+);
+   
+    -- Books Table: The books table stores book details such as book ID, title, author, category, ISBN, total copies, and available copies.
+
+CREATE TABLE books (
+    book_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(200) NOT NULL,
+    author VARCHAR(100) NOT NULL,
+    category VARCHAR(100),
+    isbn VARCHAR(20) UNIQUE,
+    total_copies INT NOT NULL DEFAULT 1,
+    available_copies INT NOT NULL DEFAULT 1
+);
+    --   Transactions Table: The transactions table records every book issue and return. It contains the user ID, book ID, issue date, due date, return date, and status.
+    --    Relationship: The user_id and book_id in the transactions table are foreign keys connected to the users and books tables.
+      
+CREATE TABLE transactions (
+    transaction_id INT PRIMARY KEY AUTO_INCREMENT,
+    book_id INT NOT NULL,
+    user_id INT NOT NULL,
+    issue_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    return_date DATE NULL,
+    status ENUM('ISSUED', 'RETURNED') DEFAULT 'ISSUED',
+
+    FOREIGN KEY (book_id)
+        REFERENCES books(book_id),
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(user_id)
+);
+
+    --  Insert Users
+INSERT INTO users (name, email, phone, address)
+VALUES
+('Eswara Moorthi', 'eswara@gmail.com', '9876543210', 'Tamil Nadu'),
+('Arun Kumar', 'arun@gmail.com', '9876543211', 'Chennai'),
+('Priya Devi', 'priya@gmail.com', '9876543212', 'Madurai');
+SELECT * FROM users;
+
+--  Adding a Book: When a new book is added, its total number of copies and available copies are stored in the books table.
+
+INSERT INTO books
+(title, author, category, isbn, total_copies, available_copies)
+VALUES
+('Java Programming', 'James Gosling', 'Programming', '978100001', 5, 5),
+('Database Management', 'Raghu Ramakrishnan', 'Database', '978100002', 3, 3),
+('Clean Code', 'Robert C. Martin', 'Programming', '978100003', 4, 4),
+('HTML and CSS', 'Jon Duckett', 'Web Development', '978100004', 2, 2);
+select*from books;
+
+SELECT *
+FROM books
+WHERE book_id = 1
+AND available_copies > 0;
+--  This part issues Book ID 1 to User ID 1:
+INSERT INTO transactions
+(book_id, user_id, issue_date, due_date, status)
+VALUES
+(1, 1, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY), 'ISSUED');
+
+UPDATE books
+SET available_copies = available_copies - 1
+WHERE book_id = 1
+AND available_copies > 0;
+
+
+START TRANSACTION;
+
+UPDATE books
+SET available_copies = available_copies - 1
+WHERE book_id = 1
+AND available_copies > 0;
+
+INSERT INTO transactions
+(book_id, user_id, issue_date, due_date, status)
+VALUES
+(1, 1, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY), 'ISSUED');
+
+COMMIT;
+
+UPDATE transactions
+SET
+    return_date = CURDATE(),
+    status = 'RETURNED'
+WHERE transaction_id = 1
+AND status = 'ISSUED';
+
+
+UPDATE books
+SET available_copies = available_copies + 1
+WHERE book_id = (
+    SELECT book_id
+    FROM transactions
+    WHERE transaction_id = 1
+);
+
+-- Track All Book Transactions
+SELECT
+    t.transaction_id,
+    u.name AS user_name,
+    b.title AS book_title,
+    t.issue_date,
+    t.due_date,
+    t.return_date,
+    t.status
+FROM transactions t
+JOIN users u
+    ON t.user_id = u.user_id
+JOIN books b
+    ON t.book_id = b.book_id
+ORDER BY t.transaction_id DESC;
+
+
+-- View Currently Issued Books
+SELECT
+    u.name AS user_name,
+    b.title AS book_title,
+    t.issue_date,
+    t.due_date
+FROM transactions t
+JOIN users u
+    ON t.user_id = u.user_id
+JOIN books b
+    ON t.book_id = b.book_id
+WHERE t.status = 'ISSUED';
+
+-- Check Overdue Books
+SELECT
+    u.name AS user_name,
+    b.title AS book_title,
+    t.issue_date,
+    t.due_date
+FROM transactions t
+JOIN users u
+    ON t.user_id = u.user_id
+JOIN books b
+    ON t.book_id = b.book_id
+WHERE t.status = 'ISSUED'
+AND t.due_date < CURDATE();
+
+-- View Available Books
+SELECT
+    book_id,
+    title,
+    author,
+    category,
+    available_copies
+FROM books
+WHERE available_copies > 0;
+-- View User Borrowing History
+SELECT
+    b.title,
+    t.issue_date,
+    t.due_date,
+    t.return_date,
+    t.status
+FROM transactions t
+JOIN books b
+    ON t.book_id = b.book_id
+WHERE t.user_id = 1
+ORDER BY t.issue_date DESC;
+
+-- Track User Borrowing Activity
+SELECT
+    u.user_id,
+    u.name,
+    COUNT(t.transaction_id) AS total_transactions
+FROM users u
+LEFT JOIN transactions t
+    ON u.user_id = t.user_id
+GROUP BY u.user_id, u.name;
+
+-- Track Most Borrowed Books
+SELECT
+    b.book_id,
+    b.title,
+    COUNT(t.transaction_id) AS times_borrowed
+FROM books b
+LEFT JOIN transactions t
+    ON b.book_id = t.book_id
+GROUP BY b.book_id, b.title
+ORDER BY times_borrowed DESC;
