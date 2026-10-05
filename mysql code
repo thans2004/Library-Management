@@ -3,7 +3,7 @@ CREATE DATABASE library_management;
 USE library_management;
 
 
-    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    CREATE user_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     phone VARCHAR(15),
@@ -119,8 +119,7 @@ JOIN books b
     ON t.book_id = b.book_id
 ORDER BY t.transaction_id DESC;
 
-
-
+SELECT
     u.name AS user_name,
     b.title AS book_title,
     t.issue_date,
